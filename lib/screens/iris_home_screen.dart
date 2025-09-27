@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../models/app_state.dart';
-import '../services/vibration_service.dart';
 import '../services/camera_service.dart';
 import '../widgets/camera_preview_widget.dart';
 import 'settings_screen.dart';
@@ -44,7 +43,8 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
                   // Camera preview - always show when camera is active
                   if (state.isCameraActive)
                     CameraPreviewWidget(
-                      cameraService: CameraService(),
+                      cameraService:
+                          context.read<AppStateProvider>().getCameraService(),
                       showPreview: true,
                     ),
 
@@ -370,28 +370,12 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
     _panStartPosition = details.localPosition;
     _panCurrentPosition = details.localPosition;
     _isGestureActive = true;
-
-    // Provide immediate feedback for gesture start
-    _provideLightHapticFeedback();
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
     if (!_isGestureActive) return;
 
     _panCurrentPosition = details.localPosition;
-
-    // Calculate current distance for continuous feedback
-    if (_panStartPosition != null) {
-      final currentDistance =
-          (_panCurrentPosition! - _panStartPosition!).distance;
-
-      // Provide progressive haptic feedback based on distance
-      if (currentDistance > 200) {
-        _provideHeavyHapticFeedback();
-      } else if (currentDistance > 100) {
-        _provideHapticFeedback();
-      }
-    }
   }
 
   void _handlePanEnd(DragEndDetails details) {
@@ -420,7 +404,7 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
     }
 
     // More lenient minimum distance for better accessibility
-    if (distance < 30) {
+    if (distance < 50) {
       debugPrint('❌ Swipe too short - distance: $distance');
       _resetGesture();
       return;
@@ -435,46 +419,40 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
     );
 
     // More responsive direction detection
-    final isHorizontal =
-        absDx > absDy * 0.8; // More lenient horizontal detection
-    final isVertical = absDy > absDx * 0.8; // More lenient vertical detection
+    final isHorizontal = absDx > absDy * 1.2;
+    final isVertical = absDy > absDx * 1.2;
 
     debugPrint('Direction - Horizontal: $isHorizontal, Vertical: $isVertical');
 
-    // Horizontal swipes (left/right) - reduced threshold
-    if (isHorizontal && absDx > 80) {
+    // Horizontal swipes (left/right)
+    if (isHorizontal && absDx > 100) {
       if (delta.dx < 0) {
         // Swipe left - Scene Description
         debugPrint('✅ Swiping left - Scene Description');
-        _provideHeavyHapticFeedback();
+        HapticFeedback.mediumImpact();
         appStateProvider.switchToSceneDescription();
       } else {
         // Swipe right - Navigation
         debugPrint('✅ Swiping right - Navigation');
-        _provideHeavyHapticFeedback();
+        HapticFeedback.mediumImpact();
         appStateProvider.switchToNavigation();
       }
     }
-    // Vertical swipes (up/down) - reduced threshold
-    else if (isVertical && absDy > 80) {
+    // Vertical swipes (up/down)
+    else if (isVertical && absDy > 100) {
       if (delta.dy < 0) {
         // Swipe up - Exit
         debugPrint('✅ Swiping up - Exit');
-        _provideHeavyHapticFeedback();
+        HapticFeedback.heavyImpact();
         appStateProvider.exitApp();
       } else {
         // Swipe down - Pause/Resume
         debugPrint('✅ Swiping down - Pause/Resume');
-        _provideHapticFeedback();
+        HapticFeedback.lightImpact();
         appStateProvider.togglePause();
       }
-    }
-    // Light swipes for feedback - more sensitive
-    else if (absDx > 30 || absDy > 30) {
-      debugPrint('⚠️ Light swipe detected - dx: $absDx, dy: $absDy');
-      _provideLightHapticFeedback();
     } else {
-      debugPrint('❌ Swipe too weak - ignored');
+      debugPrint('❌ Swipe not recognized - dx: $absDx, dy: $absDy');
     }
 
     _resetGesture();
@@ -484,25 +462,5 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
     _panStartPosition = null;
     _panCurrentPosition = null;
     _isGestureActive = false;
-  }
-
-  void _provideHapticFeedback() {
-    // Use proper vibration service for better feedback
-    VibrationService().shortVibration();
-    // Also provide haptic feedback for immediate response
-    HapticFeedback.mediumImpact();
-  }
-
-  void _provideLightHapticFeedback() {
-    // Use light vibration for subtle feedback
-    VibrationService().lightVibration();
-    // Also provide haptic feedback
-    HapticFeedback.lightImpact();
-  }
-
-  void _provideHeavyHapticFeedback() {
-    // Use heavy vibration for important actions
-    VibrationService().heavyVibration();
-    HapticFeedback.heavyImpact();
   }
 }

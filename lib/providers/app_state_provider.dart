@@ -28,6 +28,10 @@ class AppStateProvider extends ChangeNotifier {
     return _cameraService.controller;
   }
 
+  CameraService getCameraService() {
+    return _cameraService;
+  }
+
   Future<void> initialize() async {
     try {
       _updateState(status: AppStatus.initializing);

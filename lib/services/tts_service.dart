@@ -15,12 +15,20 @@ class TTSService {
 
     try {
       await _flutterTts.setLanguage("en-US");
-      await _flutterTts.setSpeechRate(0.5);
-      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setSpeechRate(0.6);
+      await _flutterTts.setVolume(0.8);
       await _flutterTts.setPitch(1.0);
+
+      // Set up completion handler
+      _flutterTts.setCompletionHandler(() {
+        debugPrint("TTS completed");
+      });
+
       _isInitialized = true;
+      debugPrint('TTS initialized successfully');
     } catch (e) {
       debugPrint('TTS initialization error: $e');
+      _isInitialized = false;
     }
   }
 
@@ -29,9 +37,16 @@ class TTSService {
       await initialize();
     }
 
+    if (!_isInitialized) {
+      debugPrint('TTS not initialized, cannot speak');
+      return;
+    }
+
     try {
       await _flutterTts.stop();
+      await Future.delayed(Duration(milliseconds: 100));
       await _flutterTts.speak(text);
+      debugPrint('TTS speaking: $text');
     } catch (e) {
       debugPrint('TTS speak error: $e');
     }
