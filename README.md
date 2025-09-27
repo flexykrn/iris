@@ -7,6 +7,10 @@ Iris also has an AI-powered mobile application built to empower visually impaire
   <img src="https://raw.githubusercontent.com/flexykrn/iris/c6ecd40118f3ac9ac2b32c1cc80313d545233132/Iris.png" alt="Iris Logo" width="100%">
 </p>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/flexykrn/iris/9b469ad26630c1d79f035cd9b6e21503ec063641/Iris2.png" alt="Iris 2" width="100%">
+</p>
+
 ## 🚀 Features
 👓 Smart Glasses Integration
 - Camera attached to spectacles captures surroundings.
