@@ -3,7 +3,9 @@
 Iris is a pair of AI-powered smart glasses designed to assist visually impaired individuals. Equipped with a ESP32-CAM Module Iris provides real-time audio descriptions of what the camera sees and helps with navigation.
 Iris also has an AI-powered mobile application built to empower visually impaired users by transforming any smartphone into a real-time vision assistant. With advanced computer vision and natural language processing, Iris provides scene descriptions, obstacle and object recognition, and intuitive navigation guidance. The app ensures maximum accessibility through a blend of voice narration, haptic feedback, and enabling users to confidently explore and interact with their surroundings — anytime, anywhere.
 
-
+<p align="center">
+  <img src="https://raw.githubusercontent.com/flexykrn/iris/c6ecd40118f3ac9ac2b32c1cc80313d545233132/Iris.png" alt="Iris Logo" width="100%">
+</p>
 
 ## 🚀 Features
 👓 Smart Glasses Integration
