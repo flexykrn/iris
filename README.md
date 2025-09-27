@@ -1,18 +1,29 @@
-# iris
+# Iris
 
-A new Flutter project.
+Iris is an AI-powered mobile application built to empower visually impaired users by transforming any smartphone into a real-time vision assistant. With advanced computer vision and natural language processing, Iris provides scene descriptions, obstacle and object recognition, and intuitive navigation guidance. The app ensures maximum accessibility through a blend of voice narration, haptic feedback, and enabling users to confidently explore and interact with their surroundings — anytime, anywhere.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+## 🚀 Features
+🧭 Navigation Mode 
+- Provides voice + haptic instructions for navigation. 
+- Detects obstacles and guides step-by-step.
+                   
+✋ Gesture & Haptic Interaction 
+-  Tap gestures for dashboard navigation
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+🎨 Simple UI
+- Clean, responsive, and user-friendly design
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+🌆 Scene Description Mode
+- Captures live feed and uses AI to describe surroundings.
+- Outputs via Text-to-Speech + vibration feedback.
 
-iris
+## 🏗️ Tech Stack
+
+- Mobile App: Flutter (cross-platform, accessibility-first UI)
+- AI Models (On-Device): 
+- Vision AI: Hugging Face Inference API (BLIP, free tier)
+- Voice Feedback: Android TTS API 
+- Haptics: Native Android/iOS vibration APIs
+
