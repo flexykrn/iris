@@ -363,6 +363,7 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
 
   // Enhanced gesture handling for full-screen recognition
   Offset? _panStartPosition;
+  // ignore: unused_field
   Offset? _panCurrentPosition;
   bool _isGestureActive = false;
 
