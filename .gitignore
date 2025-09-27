@@ -37,7 +37,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .flutter-plugins
 .metadata
-
+.vscode
 
 # Symbolication related
 app.*.symbols
