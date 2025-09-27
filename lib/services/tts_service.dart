@@ -1,5 +1,4 @@
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:vibration/vibration.dart';
 import 'package:flutter/foundation.dart';
 
 class TTSService {
@@ -52,31 +51,20 @@ class TTSService {
     }
   }
 
-  Future<void> speakWithVibration(
-    String text, {
-    bool heavyVibration = true,
-  }) async {
+  Future<void> speakWithVibration(String text) async {
     await speak(text);
-    if (heavyVibration) {
-      await Vibration.vibrate(duration: 500, amplitude: 255);
-    }
   }
 
   Future<void> speakWithShortVibration(String text) async {
     await speak(text);
-    await Vibration.vibrate(duration: 200, amplitude: 255);
   }
 
   Future<void> speakWithLongVibration(String text) async {
     await speak(text);
-    await Vibration.vibrate(duration: 1000, amplitude: 255);
   }
 
   Future<void> speakWithDoubleVibration(String text) async {
     await speak(text);
-    await Vibration.vibrate(duration: 200, amplitude: 255);
-    await Future.delayed(Duration(milliseconds: 100));
-    await Vibration.vibrate(duration: 200, amplitude: 255);
   }
 
   Future<void> stop() async {
