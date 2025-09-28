@@ -1,0 +1,9 @@
+@echo off
+echo Starting VIT-GPT AI Service...
+echo.
+echo Installing required packages...
+pip install -r requirements.txt
+echo.
+echo Starting Flask server...
+python server.py
+pause
