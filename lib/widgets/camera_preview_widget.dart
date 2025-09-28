@@ -37,18 +37,26 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
   void _startPreviewStream() {
     if (!widget.showPreview) return;
 
+    debugPrint(
+      'Starting preview stream for ${widget.cameraService.currentSource}',
+    );
+
     _previewSubscription = widget.cameraService.previewStream.listen(
       (Uint8List frameData) {
+        debugPrint('Received preview frame: ${frameData.length} bytes');
         if (mounted) {
           setState(() {
             _currentFrame = frameData;
           });
+          debugPrint('Preview frame updated in UI');
         }
       },
       onError: (error) {
         debugPrint('Preview stream error: $error');
       },
     );
+
+    debugPrint('Preview stream subscription created');
   }
 
   @override
@@ -101,12 +109,18 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                strokeWidth: 3,
               ),
               SizedBox(height: 16),
               Text(
                 'Connecting to ESP32 Camera...',
                 style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Make sure ESP32 is connected to WiFi',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
@@ -114,33 +128,41 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
       );
     }
 
-    return Image.memory(
-      _currentFrame!,
-      fit: BoxFit.cover,
+    return Container(
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.black,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.camera_alt_outlined, color: Colors.white, size: 48),
-                SizedBox(height: 16),
-                Text(
-                  'ESP32 Camera Error',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                Text(
-                  'Check connection',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
+      child: Image.memory(
+        _currentFrame!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.orange, size: 48),
+                  SizedBox(height: 16),
+                  Text(
+                    'ESP32 Camera Error',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  Text(
+                    'Check WiFi connection and IP address',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Current URL: ${widget.cameraService.esp32CameraUrl}',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

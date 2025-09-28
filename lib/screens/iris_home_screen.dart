@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../models/app_state.dart';
-import '../services/camera_service.dart';
 import '../widgets/camera_preview_widget.dart';
 import 'settings_screen.dart';
 
@@ -205,8 +204,8 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
           SizedBox(height: 20),
           Text(
             state.currentMode == AppMode.sceneDescription
-                ? 'SCENE DESCRIPTION'
-                : 'NAVIGATION',
+                ? 'SCENE DESCRIPTION MODE'
+                : 'NAVIGATION MODE',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -256,7 +255,12 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
           ),
           SizedBox(height: 10),
           Text(
-            'Swipe to start',
+            'Swipe left for scene description',
+            style: TextStyle(color: Colors.cyan, fontSize: 16),
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Swipe right for navigation',
             style: TextStyle(color: Colors.cyan, fontSize: 16),
           ),
         ],
@@ -428,13 +432,13 @@ class _IrisHomeScreenState extends State<IrisHomeScreen> {
     // Horizontal swipes (left/right)
     if (isHorizontal && absDx > 100) {
       if (delta.dx < 0) {
-        // Swipe left - Scene Description
-        debugPrint('✅ Swiping left - Scene Description');
+        // Swipe left - Scene Description Mode
+        debugPrint('✅ Swiping left - Scene Description Mode');
         HapticFeedback.mediumImpact();
         appStateProvider.switchToSceneDescription();
       } else {
-        // Swipe right - Navigation
-        debugPrint('✅ Swiping right - Navigation');
+        // Swipe right - Navigation Mode
+        debugPrint('✅ Swiping right - Navigation Mode');
         HapticFeedback.mediumImpact();
         appStateProvider.switchToNavigation();
       }

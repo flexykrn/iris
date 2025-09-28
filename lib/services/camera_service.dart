@@ -19,9 +19,10 @@ class CameraService {
   StreamController<Uint8List>? _frameStreamController;
   StreamController<Uint8List>? _previewStreamController;
 
-  // ESP32 Camera settings
-  String _esp32CameraUrl = 'http://192.168.1.100:81/stream';
-  CameraSource _currentSource = CameraSource.device;
+  // ESP32 Camera settings - will be updated when ESP32 connects to MCA-WR-2
+  String _esp32CameraUrl = 'http://192.168.0.144/capture';
+  String _esp32StreamUrl = 'http://192.168.0.144/stream';
+  CameraSource _currentSource = CameraSource.esp32; // Default to ESP32
 
   // Streams
   Stream<Uint8List> get frameStream => _frameStreamController!.stream;
@@ -34,6 +35,14 @@ class CameraService {
   bool get isStreaming => _isStreaming;
   CameraSource get currentSource => _currentSource;
   String get esp32CameraUrl => _esp32CameraUrl;
+  String get esp32StreamUrl => _esp32StreamUrl;
+
+  void updateEsp32Url(String url) {
+    _esp32CameraUrl = url;
+    final uri = Uri.parse(url);
+    _esp32StreamUrl = '${uri.scheme}://${uri.host}:${uri.port}/stream';
+    debugPrint('ESP32 URL updated to: $_esp32CameraUrl');
+  }
 
   Future<bool> initialize({CameraSource source = CameraSource.device}) async {
     try {
@@ -93,18 +102,26 @@ class CameraService {
 
   Future<bool> _initializeEsp32Camera() async {
     try {
-      // Test ESP32 camera connection
-      final response = await http
-          .get(Uri.parse(_esp32CameraUrl))
-          .timeout(Duration(seconds: 5));
+      debugPrint('Initializing ESP32 camera at: $_esp32CameraUrl');
 
-      if (response.statusCode == 200) {
+      // Test ESP32 camera connection
+      final captureResponse = await http
+          .get(Uri.parse(_esp32CameraUrl))
+          .timeout(Duration(seconds: 10));
+
+      if (captureResponse.statusCode == 200) {
         _isInitialized = true;
         _frameStreamController = StreamController<Uint8List>.broadcast();
         _previewStreamController = StreamController<Uint8List>.broadcast();
+        debugPrint('ESP32 camera initialized successfully');
+        debugPrint('Response size: ${captureResponse.bodyBytes.length} bytes');
+        debugPrint('Content type: ${captureResponse.headers['content-type']}');
         return true;
       } else {
-        debugPrint('ESP32 camera not accessible: ${response.statusCode}');
+        debugPrint(
+          'ESP32 camera not accessible: ${captureResponse.statusCode}',
+        );
+        debugPrint('Response body: ${captureResponse.body}');
         return false;
       }
     } catch (e) {
@@ -114,9 +131,18 @@ class CameraService {
   }
 
   Future<void> startStreaming({int fps = 30}) async {
-    if (!_isInitialized || _isStreaming) return;
+    if (!_isInitialized) {
+      debugPrint('Cannot start streaming - camera not initialized');
+      return;
+    }
+
+    if (_isStreaming) {
+      debugPrint('Streaming already active');
+      return;
+    }
 
     try {
+      debugPrint('Starting streaming with FPS: $fps, Source: $_currentSource');
       _isStreaming = true;
 
       if (_currentSource == CameraSource.device) {
@@ -124,6 +150,8 @@ class CameraService {
       } else {
         await _startEsp32Streaming(fps);
       }
+
+      debugPrint('Streaming started successfully');
     } catch (e) {
       debugPrint('Start streaming error: $e');
       _isStreaming = false;
@@ -147,11 +175,18 @@ class CameraService {
   }
 
   Future<void> _startEsp32Streaming(int fps) async {
+    debugPrint('Starting ESP32 streaming with FPS: $fps');
+
     // Start ESP32 frame capture
     _captureTimer = Timer.periodic(
       Duration(milliseconds: (1000 / fps).round()),
-      (timer) => _captureEsp32Frame(),
+      (timer) {
+        debugPrint('ESP32 capture timer tick');
+        _captureEsp32Frame();
+      },
     );
+
+    debugPrint('ESP32 streaming timer started');
   }
 
   Future<void> stopStreaming() async {
@@ -211,21 +246,43 @@ class CameraService {
   }
 
   Future<void> _captureEsp32Frame() async {
-    if (!_isInitialized || !_isStreaming) return;
+    if (!_isInitialized || !_isStreaming) {
+      debugPrint(
+        'ESP32 capture skipped - initialized: $_isInitialized, streaming: $_isStreaming',
+      );
+      return;
+    }
 
     try {
+      debugPrint('Capturing frame from ESP32: $_esp32CameraUrl');
       final response = await http
           .get(Uri.parse(_esp32CameraUrl))
-          .timeout(Duration(seconds: 2));
+          .timeout(Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final Uint8List imageBytes = response.bodyBytes;
+        debugPrint('ESP32 frame captured: ${imageBytes.length} bytes');
 
         // Send to preview stream for display
-        _previewStreamController?.add(imageBytes);
+        if (_previewStreamController != null &&
+            !_previewStreamController!.isClosed) {
+          _previewStreamController!.add(imageBytes);
+          debugPrint('Frame sent to preview stream');
+        } else {
+          debugPrint('Preview stream not available');
+        }
 
         // Send to frame stream for AI processing
-        _frameStreamController?.add(imageBytes);
+        if (_frameStreamController != null &&
+            !_frameStreamController!.isClosed) {
+          _frameStreamController!.add(imageBytes);
+          debugPrint('Frame sent to AI processing stream');
+        } else {
+          debugPrint('Frame stream not available');
+        }
+      } else {
+        debugPrint('ESP32 camera error: ${response.statusCode}');
+        debugPrint('Response body: ${response.body}');
       }
     } catch (e) {
       debugPrint('ESP32 frame capture error: $e');
@@ -283,6 +340,9 @@ class CameraService {
 
       if (source == CameraSource.esp32 && esp32Url != null) {
         _esp32CameraUrl = esp32Url;
+        // Update stream URL to match the base URL
+        final uri = Uri.parse(esp32Url);
+        _esp32StreamUrl = '${uri.scheme}://${uri.host}:${uri.port}/stream';
       }
 
       return await initialize(source: source);

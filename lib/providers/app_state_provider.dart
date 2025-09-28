@@ -6,6 +6,7 @@ import '../services/tts_service.dart';
 import '../services/camera_service.dart';
 import '../services/mock_ai_service.dart';
 import '../services/docker_ai_service.dart';
+import '../services/vitgpt_ai_service.dart';
 import '../services/permission_service.dart';
 import '../services/shake_service.dart';
 
@@ -15,12 +16,18 @@ class AppStateProvider extends ChangeNotifier {
   final CameraService _cameraService = CameraService();
   final MockAIService _mockAIService = MockAIService();
   final DockerAIService _dockerAIService = DockerAIService();
+  final VitGptAIService _vitGptAIService = VitGptAIService();
   final PermissionService _permissionService = PermissionService();
   final ShakeService _shakeService = ShakeService();
 
   // AI service configuration
   bool _useDockerAI = false;
+  bool _useVitGptAI = true; // Use VIT-GPT by default
   String _dockerAIUrl = 'http://localhost:8000';
+  String _vitGptUrl = 'http://localhost:5000';
+
+  // ESP32 Camera configuration - MCA-WR-2 network
+  String _esp32CameraUrl = 'http://192.168.0.144/capture';
 
   AppState get state => _state;
 
@@ -59,9 +66,51 @@ class AppStateProvider extends ChangeNotifier {
         return;
       }
 
-      // Initialize camera
+      // Configure VIT-GPT AI service
+      _vitGptAIService.configure(
+        baseUrl: _vitGptUrl,
+        timeout: Duration(seconds: 30),
+      );
+
+      // Test VIT-GPT connection
+      final vitGptConnected = await _vitGptAIService.testConnection();
+      if (vitGptConnected) {
+        _useVitGptAI = true;
+        _useDockerAI = false;
+        debugPrint('VIT-GPT AI service connected and ready');
+        await _ttsService.speakWithShortVibration('VIT-GPT AI ready');
+      } else {
+        debugPrint('VIT-GPT AI service not available, using mock service');
+        _useVitGptAI = false;
+        await _ttsService.speakWithShortVibration('Using offline mode');
+      }
+
+      // Try to initialize ESP32 camera first
       _updateState(status: AppStatus.startingCamera);
-      final cameraInitialized = await _cameraService.initialize();
+      bool cameraInitialized = false;
+
+      // Try ESP32 camera first with configured URL
+      debugPrint('Attempting to initialize ESP32 camera...');
+      _cameraService.updateEsp32Url(_esp32CameraUrl);
+      cameraInitialized = await _cameraService.initialize(
+        source: CameraSource.esp32,
+      );
+
+      if (cameraInitialized) {
+        debugPrint('ESP32 camera initialized successfully');
+        await _ttsService.speakWithShortVibration('ESP32 camera connected');
+      } else {
+        // Fallback to device camera
+        debugPrint('ESP32 camera failed, trying device camera');
+        cameraInitialized = await _cameraService.initialize(
+          source: CameraSource.device,
+        );
+
+        if (cameraInitialized) {
+          debugPrint('Device camera initialized successfully');
+          await _ttsService.speakWithShortVibration('Device camera connected');
+        }
+      }
 
       if (!cameraInitialized) {
         _updateState(
@@ -76,9 +125,13 @@ class AppStateProvider extends ChangeNotifier {
       }
 
       // Start camera streaming and capturing
+      debugPrint('Starting camera preview and streaming...');
       await _cameraService.startPreview();
-      await _cameraService.startStreaming(fps: 30); // Continuous streaming
+      await _cameraService.startStreaming(
+        fps: 30,
+      ); // Continuous streaming for preview
       await _cameraService.startCapturing(fps: 1); // AI processing frames
+      debugPrint('Camera streaming and capturing started');
 
       _updateState(
         status: AppStatus.idle,
@@ -87,8 +140,9 @@ class AppStateProvider extends ChangeNotifier {
       );
 
       // Welcome message with instructions
+      final aiService = _useVitGptAI ? 'VIT-GPT AI' : 'Mock AI';
       await _ttsService.speakWithVibration(
-        'Iris started. Swipe left for scene description mode. Swipe right for navigation mode.',
+        'Iris started with $aiService. Swipe left for scene description. Swipe right for navigation.',
       );
     } catch (e) {
       _updateState(
@@ -112,27 +166,39 @@ class AppStateProvider extends ChangeNotifier {
       if (_state.status != AppStatus.ready || !_state.isCapturing) return;
 
       try {
-        String description;
+        String result;
+        debugPrint(
+          'Processing frame from ESP32-CAM (${imageBytes.length} bytes)',
+        );
+
         if (_state.currentMode == AppMode.sceneDescription) {
-          if (_useDockerAI) {
-            description = await _dockerAIService.getSceneDescription(
+          if (_useVitGptAI) {
+            debugPrint('Getting scene description from VIT-GPT...');
+            result = await _vitGptAIService.getSceneDescription(imageBytes);
+            debugPrint('VIT-GPT scene description: $result');
+          } else if (_useDockerAI) {
+            result = await _dockerAIService.getSceneDescription(imageBytes);
+          } else {
+            result = await _mockAIService.getSceneDescription();
+          }
+          _updateState(lastDescription: result);
+          await _ttsService.speakWithShortVibration(result);
+        } else {
+          if (_useVitGptAI) {
+            debugPrint('Getting navigation guidance from VIT-GPT...');
+            result = await _vitGptAIService.getNavigationGuidance(imageBytes);
+            debugPrint('VIT-GPT navigation: $result');
+          } else if (_useDockerAI) {
+            final nav = await _dockerAIService.getNavigationGuidance(
               imageBytes,
             );
+            result = nav['directions'];
           } else {
-            description = await _mockAIService.getSceneDescription();
+            final nav = await _mockAIService.getNavigationGuidance();
+            result = nav['directions'];
           }
-          _updateState(lastDescription: description);
-          await _ttsService.speakWithShortVibration(description);
-        } else {
-          Map<String, dynamic> nav;
-          if (_useDockerAI) {
-            nav = await _dockerAIService.getNavigationGuidance(imageBytes);
-          } else {
-            nav = await _mockAIService.getNavigationGuidance();
-          }
-          description = nav['directions'];
-          _updateState(lastNavigation: description);
-          await _ttsService.speakWithShortVibration(description);
+          _updateState(lastNavigation: result);
+          await _ttsService.speakWithShortVibration(result);
         }
       } catch (e) {
         debugPrint('Frame processing error: $e');
@@ -150,7 +216,9 @@ class AppStateProvider extends ChangeNotifier {
         status: AppStatus.ready,
         isCapturing: true,
       );
-      await _ttsService.speakWithShortVibration('Scene description mode');
+      await _ttsService.speakWithShortVibration(
+        'Scene description mode activated',
+      );
 
       // Start processing frames only when user switches to this mode
       _startFrameProcessing();
@@ -173,7 +241,7 @@ class AppStateProvider extends ChangeNotifier {
         status: AppStatus.ready,
         isCapturing: true,
       );
-      await _ttsService.speakWithShortVibration('Navigation mode');
+      await _ttsService.speakWithShortVibration('Navigation mode activated');
 
       // Start processing frames only when user switches to this mode
       _startFrameProcessing();
@@ -238,6 +306,7 @@ class AppStateProvider extends ChangeNotifier {
       final isConnected = await _dockerAIService.testConnection();
       if (isConnected) {
         _useDockerAI = true;
+        _useVitGptAI = false;
         await _ttsService.speakWithShortVibration(
           'Docker AI service connected',
         );
@@ -256,15 +325,80 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> configureVitGptAI(String url) async {
+    try {
+      _vitGptUrl = url;
+      _vitGptAIService.configure(baseUrl: url, timeout: Duration(seconds: 30));
+
+      // Test connection
+      final isConnected = await _vitGptAIService.testConnection();
+      if (isConnected) {
+        _useVitGptAI = true;
+        _useDockerAI = false;
+        await _ttsService.speakWithShortVibration(
+          'VIT-GPT AI service connected',
+        );
+      } else {
+        _useVitGptAI = false;
+        await _ttsService.speakWithDoubleVibration(
+          'VIT-GPT AI service connection failed',
+        );
+      }
+    } catch (e) {
+      debugPrint('VIT-GPT AI configuration error: $e');
+      _useVitGptAI = false;
+      await _ttsService.speakWithDoubleVibration(
+        'VIT-GPT AI configuration failed',
+      );
+    }
+  }
+
+  Future<void> configureEsp32Camera(String url) async {
+    try {
+      _esp32CameraUrl = url;
+
+      // Test ESP32 camera connection
+      final success = await _cameraService.switchCameraSource(
+        CameraSource.esp32,
+        esp32Url: url,
+      );
+
+      if (success) {
+        await _ttsService.speakWithShortVibration('ESP32 camera configured');
+      } else {
+        await _ttsService.speakWithDoubleVibration(
+          'ESP32 camera connection failed',
+        );
+      }
+    } catch (e) {
+      debugPrint('ESP32 camera configuration error: $e');
+      await _ttsService.speakWithDoubleVibration(
+        'ESP32 camera configuration failed',
+      );
+    }
+  }
+
   void toggleAIService() {
-    _useDockerAI = !_useDockerAI;
-    _ttsService.speakWithShortVibration(
-      _useDockerAI ? 'Using Docker AI service' : 'Using mock AI service',
-    );
+    if (_useVitGptAI) {
+      _useVitGptAI = false;
+      _useDockerAI = true;
+      _ttsService.speakWithShortVibration('Using Docker AI service');
+    } else if (_useDockerAI) {
+      _useDockerAI = false;
+      _useVitGptAI = false;
+      _ttsService.speakWithShortVibration('Using mock AI service');
+    } else {
+      _useVitGptAI = true;
+      _useDockerAI = false;
+      _ttsService.speakWithShortVibration('Using VIT-GPT AI service');
+    }
   }
 
   bool get useDockerAI => _useDockerAI;
+  bool get useVitGptAI => _useVitGptAI;
   String get dockerAIUrl => _dockerAIUrl;
+  String get vitGptUrl => _vitGptUrl;
+  String get esp32CameraUrl => _esp32CameraUrl;
 
   Future<void> exitApp() async {
     await _ttsService.speakWithLongVibration('Exiting Iris');

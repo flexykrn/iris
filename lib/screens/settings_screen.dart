@@ -14,19 +14,22 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _esp32UrlController = TextEditingController();
   final TextEditingController _dockerUrlController = TextEditingController();
+  final TextEditingController _vitGptUrlController = TextEditingController();
   final TextEditingController _apiKeyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _esp32UrlController.text = 'http://192.168.1.100:81/stream';
+    _esp32UrlController.text = 'http://192.168.0.144/capture';
     _dockerUrlController.text = 'http://localhost:8000';
+    _vitGptUrlController.text = 'http://localhost:5000';
   }
 
   @override
   void dispose() {
     _esp32UrlController.dispose();
     _dockerUrlController.dispose();
+    _vitGptUrlController.dispose();
     _apiKeyController.dispose();
     super.dispose();
   }
@@ -70,6 +73,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSectionTitle('ESP32 Camera'),
                 SizedBox(height: 16),
                 _buildEsp32Card(appStateProvider),
+                SizedBox(height: 32),
+
+                _buildSectionTitle('VIT-GPT AI Service'),
+                SizedBox(height: 16),
+                _buildVitGptCard(appStateProvider),
                 SizedBox(height: 32),
 
                 _buildSectionTitle('Docker AI Service'),
@@ -162,12 +170,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               trailing: Radio<bool>(
                 value: false,
-                groupValue: provider.useDockerAI,
+                groupValue: provider.useDockerAI || provider.useVitGptAI,
                 onChanged: (value) {
                   provider.toggleAIService();
                   HapticFeedback.mediumImpact();
                 },
                 activeColor: Colors.green,
+              ),
+            ),
+            Divider(color: Colors.grey[700]),
+            ListTile(
+              leading: Icon(Icons.psychology, color: Colors.purple),
+              title: Text(
+                'VIT-GPT AI Service',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: Radio<bool>(
+                value: true,
+                groupValue: provider.useVitGptAI,
+                onChanged: (value) {
+                  provider.toggleAIService();
+                  HapticFeedback.mediumImpact();
+                },
+                activeColor: Colors.purple,
               ),
             ),
             Divider(color: Colors.grey[700]),
@@ -222,17 +247,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  provider.switchCameraSource(
-                    CameraSource.esp32,
-                    esp32Url: _esp32UrlController.text,
-                  );
+                  provider.configureEsp32Camera(_esp32UrlController.text);
                   HapticFeedback.mediumImpact();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
                   foregroundColor: Colors.white,
                 ),
-                child: Text('Connect to ESP32'),
+                child: Text('Configure ESP32 Camera'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVitGptCard(AppStateProvider provider) {
+    return Card(
+      color: Colors.grey[900],
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _vitGptUrlController,
+              style: TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'VIT-GPT AI Service URL',
+                labelStyle: TextStyle(color: Colors.grey[400]),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey[700]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey[700]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.purple),
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  provider.configureVitGptAI(_vitGptUrlController.text);
+                  HapticFeedback.mediumImpact();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Configure VIT-GPT AI'),
               ),
             ),
           ],
